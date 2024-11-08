@@ -15,7 +15,6 @@ import {
   type ModalSubmitInteraction,
 } from "discord.js";
 
-// 型定義
 type GameState = {
   readonly bet: number;
   readonly money: number;
@@ -27,24 +26,24 @@ type GameResult = {
   readonly updatedMoney: number;
 };
 
-// 定数
 const CONSTANTS = {
   TIMEOUT_MS: 60000,
   MAX_BET: 10000,
   MESSAGES: {
     errors: {
       NO_MONEY_DATA:
-        "所持金データが見つかりません。`/start`コマンドを実行してください。",
+        "所持金データが見つかりません。/omikuji コマンドでお金を受け取ってください。",
       MIN_BET: "賭け金は1円以上である必要があります。",
-      NO_MONEY: "所持金が0円です。他の方法でお金を稼いでください。",
+      NO_MONEY:
+        "所持金が0円です。/omikuji コマンドでお金を受け取ってください。",
       INVALID_BET: (maxBet: number) =>
         `無効な金額です。1～${maxBet}円の間で指定してください。`,
+      TIMEOUT: "制限時間が過ぎました。もう一度コマンドを実行してください。",
       GENERIC_ERROR: "エラーが発生しました。もう一度お試しください。",
     },
   },
 } as const;
 
-// コマンド定義
 export const data = new SlashCommandBuilder()
   .setName("coinflip")
   .setDescription("コインフリップゲームを行います。")
@@ -52,7 +51,6 @@ export const data = new SlashCommandBuilder()
     option.setName("bet").setDescription("賭け金").setRequired(true),
   );
 
-// 純粋関数群
 const createGameState = (bet: number, money: number): GameState => ({
   bet: Math.min(bet, Math.min(money, CONSTANTS.MAX_BET)),
   money,
@@ -147,7 +145,6 @@ const createBetInputModal = (state: GameState): ModalBuilder => {
     .addComponents(actionRow);
 };
 
-// 副作用を含む関数群
 const flipCoin = async (
   userId: string,
   state: GameState,
@@ -239,7 +236,6 @@ const handleGameResult = async (
   return { resultButtons, resultEmbed, result };
 };
 
-// メインの実行関数
 export async function execute(interaction: CommandInteraction): Promise<void> {
   try {
     const userMoney = await prisma.user.findUnique({
@@ -284,7 +280,6 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 
     let gameState = initialGameState;
 
-    // インタラクションハンドラー内の処理
     collector.on("collect", async (i) => {
       try {
         if (i.isButton()) {
@@ -306,10 +301,22 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
               select: { money: true },
             });
 
-            if (!latestUserMoney) {
-              await i.reply({
-                content: CONSTANTS.MESSAGES.errors.NO_MONEY_DATA,
-                ephemeral: true,
+            if (!latestUserMoney || latestUserMoney.money <= 0) {
+              const noMoneyEmbed = new EmbedBuilder()
+                .setTitle("💸 所持金が0円になりました")
+                .setDescription(
+                  "```diff\n- 所持金が足りません！\n+ /omikuji コマンドでお金を受け取ってください！```",
+                )
+                .setColor("#ff0000")
+                .setFooter({
+                  text: "おみくじを引いてお金をゲット！",
+                  iconURL: interaction.user.displayAvatarURL(),
+                })
+                .setTimestamp();
+
+              await i.update({
+                embeds: [noMoneyEmbed],
+                components: [],
               });
               return;
             }
@@ -343,7 +350,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
               .setDescription("```diff\n+ お疲れ様でした！またね```")
               .setColor("#00ff00")
               .setFooter({
-                text: "また遊んでね！",
+                text: `所持金: ${gameState.money}円`,
                 iconURL: interaction.user.displayAvatarURL(),
               })
               .setTimestamp();
@@ -380,9 +387,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       if (reason === "time") {
         const timeoutEmbed = new EmbedBuilder()
           .setTitle("⏰ タイムアウト")
-          .setDescription(
-            "制限時間が過ぎました。もう一度コマンドを実行してください。",
-          )
+          .setDescription(CONSTANTS.MESSAGES.errors.TIMEOUT)
           .setColor("#ff0000");
 
         await interaction.editReply({
