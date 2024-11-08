@@ -27,6 +27,7 @@ model User {
   money   Int    @default(0)
   joinedGuilds Guild[]
   omikujiResults OmikujiResult[]
+  gameLogs GameLog[]
   lastDrawDate DateTime @default(now())
   createdAt DateTime @default(now())
 }
@@ -48,6 +49,16 @@ model OmikujiResult {
   userId       String
   user         User     @relation(fields: [userId], references: [id])
   result       String
+  createdAt    DateTime @default(now())
+}
+
+model GameLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  bet          Int
+  win          Boolean
+  updatedMoney Int
   createdAt    DateTime @default(now())
 }
 
