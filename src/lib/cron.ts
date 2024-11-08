@@ -4,7 +4,7 @@ import { logger } from "./logger";
 import cron from "node-cron";
 import { client } from "./discordClient";
 import { TextChannel } from "discord.js";
-
+import { cronJobs } from "@/index";
 const getActiveMessages = async () => {
   return await prisma.scheduledMessage.findMany({
     where: {
@@ -13,17 +13,15 @@ const getActiveMessages = async () => {
   });
 };
 
-const cronJobs = new Map<string, cron.ScheduledTask>();
-
 const setCron = async (message: ScheduledMessage) => {
   const existingJob = cronJobs.get(message.id);
   if (existingJob) {
     existingJob.stop();
   }
 
-  const [minute, hour] = message.scheduleTime.split(":");
-  
-  const job = cron.schedule(`${minute} ${hour} * * *`, () => {
+  const [hours, minutes] = message.scheduleTime.split(":");
+
+  const job = cron.schedule(`${minutes} ${hours} * * *`, () => {
     const channel = client.channels.cache.get(message.channelId);
     if (channel instanceof TextChannel) {
       channel.send(message.message);
@@ -52,6 +50,7 @@ const addMessage = async (params: ScheduledMessage) => {
     await setCron(message);
     logger.info("メッセージを追加しました", params);
   } catch (error) {
+    console.error(error);
     logger.error("エラーが発生しました", error);
   }
 };

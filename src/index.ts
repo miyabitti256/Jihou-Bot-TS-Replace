@@ -7,9 +7,24 @@ import cron from "node-cron";
 import { commands, loadCommands } from "@lib/commandHandler";
 
 const token = process.env.DISCORD_TOKEN as string;
+
+export const cronJobs = new Map<string, cron.ScheduledTask>();
 // botが起動したら
-client.on("ready", () => {
+client.on("ready", async () => {
   logger.info("Discord client connected");
+  
+  const guilds = client.guilds.cache;
+  for (const [guildId, guild] of guilds) {
+    await prisma.guild.upsert({
+      where: { id: guildId },
+      update: { name: guild.name },
+      create: {
+        id: guildId,
+        name: guild.name,
+      },
+    });
+  }
+  
   init();
   loadCommands();
   const startTime = new Date();
@@ -20,6 +35,8 @@ client.on("ready", () => {
       updateStatus(startTime);
     },
   );
+  
+  logger.info(`${guilds.size}個のサーバーとデータを同期しました`);
 });
 
 // サーバーに参加したら

@@ -1,4 +1,5 @@
 import { addMessage } from "@/lib/cron";
+import { logger } from "@/lib/logger";
 import { generateId } from "@/lib/utils";
 import {
   type ChatInputCommandInteraction,
@@ -45,16 +46,25 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     return;
   }
 
-  addMessage({
-    id: generateId(),
-    guildId: interaction.guildId as string,
-    channelId: interaction.channelId as string,
-    message,
-    scheduleTime: time,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  try {
+    addMessage({
+      id: generateId(),
+      guildId: interaction.guildId as string,
+      channelId: interaction.channelId as string,
+      message,
+      scheduleTime: time,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    logger.error(error);
+    await interaction.reply({
+      content: "時報の設定に失敗しました",
+      ephemeral: true,
+    });
+    return;
+  }
 
   await interaction.reply({
     content: "時報を設定しました",

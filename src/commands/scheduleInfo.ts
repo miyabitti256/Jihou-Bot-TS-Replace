@@ -14,13 +14,42 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     where: {
       guildId,
     },
+    orderBy: {
+      scheduleTime: "asc",
+    },
   });
-  const embed = new EmbedBuilder().setTitle("時報の情報");
+  const embed = new EmbedBuilder()
+    .setTitle("📅 時報の設定一覧")
+    .setColor("#00ff00");
   if (messages.length > 0) {
-    for (const message of messages) {
+    const sortedMessages = messages.sort((a, b) => {
+      const [aHours, aMinutes] = a.scheduleTime.split(":").map(Number);
+      const [bHours, bMinutes] = b.scheduleTime.split(":").map(Number);
+
+      const aTotal = aHours * 60 + aMinutes;
+      const bTotal = bHours * 60 + bMinutes;
+
+      return aTotal - bTotal;
+    });
+
+    for (const message of sortedMessages) {
       embed.addFields({
-        name: `ID: ${message.id} 時刻: ${message.scheduleTime}`,
-        value: `内容: ${message.message} アクティブ: ${message.isActive}`,
+        name: `⏰ ${message.scheduleTime}`,
+        value: [
+          "```md",
+          "# メッセージ",
+          message.message,
+          "",
+          "# 詳細情報",
+          `* チャンネル: ${
+            interaction.guild?.channels.cache.get(message.channelId)?.name
+          }`,
+          `* ID: ${message.id}`,
+          `* ステータス: ${message.isActive ? "🟢 有効" : "🔴 無効"}`,
+          "```",
+          "",
+        ].join("\n"),
+        inline: false,
       });
     }
   } else {
