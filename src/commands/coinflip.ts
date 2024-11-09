@@ -345,12 +345,17 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
               components: [resultButtons],
             });
           } else if (i.customId === "endGame") {
+            const latestUserMoney = await prisma.user.findUnique({
+              where: { id: interaction.user.id },
+              select: { money: true },
+            });
+
             const endEmbed = new EmbedBuilder()
               .setTitle("👋 コインフリップを終了します")
               .setDescription("```diff\n+ お疲れ様でした！またね```")
               .setColor("#00ff00")
               .setFooter({
-                text: `所持金: ${gameState.money}円`,
+                text: `所持金: ${latestUserMoney?.money}円`,
                 iconURL: interaction.user.displayAvatarURL(),
               })
               .setTimestamp();
