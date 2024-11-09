@@ -70,6 +70,7 @@ client.on("ready", async () => {
           create: {
             id: userId,
             name: name,
+            lastDrawDate: new Date(0),
             guilds: {
               create: Array.from(guildIds).map((guildId) => ({
                 guild: {
