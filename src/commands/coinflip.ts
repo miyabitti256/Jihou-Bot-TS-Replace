@@ -251,6 +251,20 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       return;
     }
 
+    if (userMoney.money <= 0) {
+      const noMoneyEmbed = new EmbedBuilder()
+        .setTitle("💸 所持金が0円です！")
+        .setDescription(
+          "```diff\n- 所持金が足りません！\n+ /omikuji コマンドでお金を受け取ってください！```",
+        )
+        .setColor("#ff0000")
+        .setTimestamp();
+      await interaction.reply({
+        embeds: [noMoneyEmbed],
+      });
+      return;
+    }
+
     const initialBet = interaction.options.get("bet")?.value as number;
     if (initialBet < 1) {
       await interaction.reply({
@@ -363,6 +377,8 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
               embeds: [endEmbed],
               components: [],
             });
+
+            collector.stop();
             return;
           } else {
             gameState = await handleButtonInteraction(i, gameState, buttons);
@@ -399,6 +415,8 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           embeds: [timeoutEmbed],
           components: [],
         });
+
+        collector.stop();
       }
     });
   } catch (error) {
