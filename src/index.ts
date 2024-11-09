@@ -12,31 +12,93 @@ export const cronJobs = new Map<string, cron.ScheduledTask>();
 // botが起動したら
 client.on("ready", async () => {
   logger.info("Discord client connected");
-  
-  const guilds = client.guilds.cache;
-  for (const [guildId, guild] of guilds) {
-    await prisma.guild.upsert({
-      where: { id: guildId },
-      update: { name: guild.name },
-      create: {
-        id: guildId,
-        name: guild.name,
+
+  try {
+    // ギルドの upsert
+    await Promise.all(
+      client.guilds.cache.map((guild) =>
+        prisma.guild.upsert({
+          where: { id: guild.id },
+          update: { name: guild.name },
+          create: {
+            id: guild.id,
+            name: guild.name,
+          },
+        }),
+      ),
+    );
+
+    // 全ギルドのメンバー情報を収集
+    const allMembers = new Map<
+      string,
+      {
+        name: string;
+        guildIds: Set<string>;
+      }
+    >();
+
+    for (const [_, guild] of client.guilds.cache) {
+      const members = await guild.members.fetch();
+
+      for (const [memberId, member] of members) {
+        if (!allMembers.has(memberId)) {
+          allMembers.set(memberId, {
+            name: member.displayName,
+            guildIds: new Set(),
+          });
+        }
+        allMembers.get(memberId)?.guildIds.add(guild.id);
+      }
+    }
+
+    // ユーザーの upsert と関連するギルドの設定
+    await Promise.all(
+      Array.from(allMembers.entries()).map(([userId, { name, guildIds }]) =>
+        prisma.user.upsert({
+          where: { id: userId },
+          update: {
+            name: name,
+            guilds: {
+              deleteMany: {}, // 既存の関連をクリア
+              create: Array.from(guildIds).map((guildId) => ({
+                guild: {
+                  connect: { id: guildId },
+                },
+              })),
+            },
+          },
+          create: {
+            id: userId,
+            name: name,
+            guilds: {
+              create: Array.from(guildIds).map((guildId) => ({
+                guild: {
+                  connect: { id: guildId },
+                },
+              })),
+            },
+          },
+        }),
+      ),
+    );
+
+    logger.info(
+      `${client.guilds.cache.size}個のサーバーと${allMembers.size}人のユーザーを同期しました`,
+    );
+
+    init();
+    loadCommands();
+    const startTime = new Date();
+    updateStatus(startTime);
+    cron.schedule(
+      `${startTime.getSeconds()} ${startTime.getMinutes()} * * * *`,
+      () => {
+        updateStatus(startTime);
       },
-    });
+    );
+  } catch (error) {
+    logger.error("データベースの同期中にエラーが発生しました:", error);
   }
-  
-  init();
-  loadCommands();
-  const startTime = new Date();
-  updateStatus(startTime);
-  cron.schedule(
-    `${startTime.getSeconds()} ${startTime.getMinutes()} * * * *`,
-    () => {
-      updateStatus(startTime);
-    },
-  );
-  
-  logger.info(`${guilds.size}個のサーバーとデータを同期しました`);
 });
 
 // サーバーに参加したら
@@ -48,6 +110,19 @@ client.on("guildCreate", async (guild) => {
         name: guild.name,
       },
     });
+    const guildMembers = await guild.members.fetch();
+    await Promise.all(
+      guildMembers.map((member) =>
+        prisma.user.upsert({
+          where: { id: member.id },
+          update: { name: member.displayName },
+          create: {
+            id: member.id,
+            name: member.displayName,
+          },
+        }),
+      ),
+    );
     logger.info(`${guild.name}に参加しました`);
   } catch (error) {
     logger.error(`${guild.name}への参加中にエラーが発生しました`, error);

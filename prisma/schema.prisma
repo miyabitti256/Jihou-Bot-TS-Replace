@@ -16,7 +16,7 @@ datasource db {
 model Guild {
   id      String @id
   name    String
-  users   User[]
+  users   UserGuild[]
   joinedAt DateTime @default(now())
   scheduledMessages ScheduledMessage[]
 }
@@ -24,12 +24,21 @@ model Guild {
 model User {
   id      String @id
   name    String
-  money   Int    @default(0)
-  joinedGuilds Guild[]
+  money   Int    @default(1000)
+  guilds  UserGuild[]
   omikujiResults OmikujiResult[]
   gameLogs GameLog[]
   lastDrawDate DateTime @default(now())
   createdAt DateTime @default(now())
+}
+
+model UserGuild {
+  user    User    @relation(fields: [userId], references: [id])
+  userId  String
+  guild   Guild   @relation(fields: [guildId], references: [id])
+  guildId String
+
+  @@id([userId, guildId])
 }
 
 model ScheduledMessage {
@@ -70,3 +79,4 @@ model Goods {
   description  String
   createdAt    DateTime @default(now())
 }
+
