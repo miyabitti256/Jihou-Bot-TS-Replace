@@ -28,63 +28,72 @@ client.on("ready", async () => {
       ),
     );
 
-    // 全ギルドのメンバー情報を収集
-    const allMembers = new Map<
-      string,
-      {
-        name: string;
-        guildIds: Set<string>;
-      }
-    >();
-
+    // メンバー処理を分割して実行
     for (const [_, guild] of client.guilds.cache) {
       const members = await guild.members.fetch();
 
-      for (const [memberId, member] of members) {
-        if (!allMembers.has(memberId)) {
-          allMembers.set(memberId, {
-            name: member.displayName,
-            guildIds: new Set(),
-          });
-        }
-        allMembers.get(memberId)?.guildIds.add(guild.id);
+      // botを除外したメンバーリストを作成
+      const nonBotMembers = Array.from(members.values()).filter(
+        (member) => !member.user.bot,
+      );
+
+      // バッチ処理
+      const batchSize = 5;
+      for (let i = 0; i < nonBotMembers.length; i += batchSize) {
+        const batch = nonBotMembers.slice(i, i + batchSize);
+
+        await Promise.all(
+          batch.map(async (member) => {
+            try {
+              await prisma.user.upsert({
+                where: { id: member.id },
+                update: {
+                  name: member.displayName,
+                  guilds: {
+                    upsert: {
+                      where: {
+                        userId_guildId: {
+                          userId: member.id,
+                          guildId: guild.id,
+                        },
+                      },
+                      create: {
+                        guild: {
+                          connect: { id: guild.id },
+                        },
+                      },
+                      update: {},
+                    },
+                  },
+                },
+                create: {
+                  id: member.id,
+                  name: member.displayName,
+                  lastDrawDate: new Date(0),
+                  guilds: {
+                    create: {
+                      guild: {
+                        connect: { id: guild.id },
+                      },
+                    },
+                  },
+                },
+              });
+            } catch (error) {
+              console.error(
+                `Error processing user ${member.displayName}:`,
+                error,
+              );
+            }
+          }),
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
-    // ユーザーの upsert と関連するギルドの設定
-    await Promise.all(
-      Array.from(allMembers.entries()).map(([userId, { name, guildIds }]) =>
-        prisma.user.upsert({
-          where: { id: userId },
-          update: {
-            name: name,
-            guilds: {
-              deleteMany: {}, // 既存の関連をクリア
-              create: Array.from(guildIds).map((guildId) => ({
-                guild: {
-                  connect: { id: guildId },
-                },
-              })),
-            },
-          },
-          create: {
-            id: userId,
-            name: name,
-            lastDrawDate: new Date(0),
-            guilds: {
-              create: Array.from(guildIds).map((guildId) => ({
-                guild: {
-                  connect: { id: guildId },
-                },
-              })),
-            },
-          },
-        }),
-      ),
-    );
-
     logger.info(
-      `${client.guilds.cache.size}個のサーバーと${allMembers.size}人のユーザーを同期しました`,
+      `${client.guilds.cache.size}個のサーバーのユーザーを同期しました`,
     );
 
     init();
@@ -98,7 +107,11 @@ client.on("ready", async () => {
       },
     );
   } catch (error) {
-    logger.error("データベースの同期中にエラーが発生しました:", error);
+    logger.error("データベースの同期中にエラーが発生しました:", {
+      error,
+      stack: error instanceof Error ? error.stack : undefined,
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
