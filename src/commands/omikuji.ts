@@ -142,9 +142,8 @@ function drawOmikuji(): { result: OmikujiResult; money: number } {
 }
 
 function getTokyoDate(): Date {
-  return new Date(
-    new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" }),
-  );
+  const now = new Date(new Date().getTime() - 5 * 60 * 60 * 1000);
+  return new Date(now.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" }));
 }
 
 function hasDrawnToday(now: Date, lastDrawDate: Date): boolean {
