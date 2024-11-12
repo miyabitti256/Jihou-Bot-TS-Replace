@@ -21,15 +21,21 @@ const setCron = async (message: ScheduledMessage) => {
 
   const [hours, minutes] = message.scheduleTime.split(":");
 
-  const job = cron.schedule(`${minutes} ${hours} * * *`, () => {
-    const channel = client.channels.cache.get(message.channelId);
-    if (channel instanceof TextChannel) {
-      channel.send(message.message);
-      logger.info(`${message.id} のメッセージを送信しました`);
-    } else {
-      logger.error(`${message.id} のメッセージを送信でエラーが発生しました`);
-    }
-  });
+  const job = cron.schedule(
+    `${minutes} ${hours} * * *`,
+    () => {
+      const channel = client.channels.cache.get(message.channelId);
+      if (channel instanceof TextChannel) {
+        channel.send(message.message);
+        logger.info(`${message.id} のメッセージを送信しました`);
+      } else {
+        logger.error(`${message.id} のメッセージを送信でエラーが発生しました`);
+      }
+    },
+    {
+      timezone: "Asia/Tokyo",
+    },
+  );
 
   cronJobs.set(message.id, job);
 };
