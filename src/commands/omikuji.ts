@@ -159,7 +159,7 @@ async function buildReply(
   interaction: ChatInputCommandInteraction,
   result: OmikujiResult,
 ): Promise<string> {
-  let reply = `おみくじの結果は${result}です。`;
+  let reply = `おみくじの結果は「${result}」です！`;
 
   if (
     result === OMIKUJI_TYPES.NUBEKICHI ||
