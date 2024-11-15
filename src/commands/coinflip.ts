@@ -110,13 +110,18 @@ const createResultButtons = (): ActionRowBuilder<ButtonBuilder> =>
 const createResultEmbed = (
   state: GameState,
   result: GameResult,
+  choice: "heads" | "tails",
 ): EmbedBuilder =>
   new EmbedBuilder()
     .setTitle("🎲 コインフリップ結果 🎲")
     .setColor(result.win ? "#00ff00" : "#ff0000")
     .addFields(
       { name: "賭け金", value: `${state.bet}円`, inline: true },
-      { name: "結果", value: result.win ? "表 🪙" : "裏 💀", inline: true },
+      {
+        name: "結果",
+        value: choice === "heads" ? "表 🪙" : "裏 💀",
+        inline: true,
+      },
       {
         name: "獲得コイン",
         value: result.win ? `${state.bet}円` : "0円",
@@ -231,7 +236,7 @@ const handleGameResult = async (
 ) => {
   const result = await flipCoin(interaction.user.id, state, choice);
   const resultButtons = createResultButtons();
-  const resultEmbed = createResultEmbed(state, result);
+  const resultEmbed = createResultEmbed(state, result, choice);
 
   return { resultButtons, resultEmbed, result };
 };
