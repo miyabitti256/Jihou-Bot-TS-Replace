@@ -111,15 +111,18 @@ const createResultEmbed = (
   state: GameState,
   result: GameResult,
   choice: "heads" | "tails",
-): EmbedBuilder =>
-  new EmbedBuilder()
+): EmbedBuilder => {
+  const resultEmoji = result.win 
+    ? (choice === "heads" ? "表 🪙" : "裏 💀")
+    : (choice === "heads" ? "裏 💀" : "表 🪙");
+  const resultEmbed = new EmbedBuilder()
     .setTitle("🎲 コインフリップ結果 🎲")
     .setColor(result.win ? "#00ff00" : "#ff0000")
     .addFields(
       { name: "賭け金", value: `${state.bet}円`, inline: true },
       {
         name: "結果",
-        value: choice === "heads" ? "表 🪙" : "裏 💀",
+        value: resultEmoji,
         inline: true,
       },
       {
@@ -127,8 +130,15 @@ const createResultEmbed = (
         value: result.win ? `${state.bet}円` : "0円",
         inline: true,
       },
-      { name: "現在の所持金", value: `${result.updatedMoney}円`, inline: true },
+      {
+        name: "現在の所持金",
+        value: `${result.updatedMoney}円`,
+        inline: true,
+      },
     );
+
+  return resultEmbed;
+};
 
 const createBetInputModal = (state: GameState): ModalBuilder => {
   const betInput = new TextInputBuilder()
