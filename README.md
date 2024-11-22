@@ -2,8 +2,6 @@
 
 一日に一度、指定の時刻にメッセージを送信するbotです 使い方はコマンドセクションをご覧ください。
 
-自宅鯖で動かしているため、よく落ちます。ご了承ください。
-
 ## 招待URL
 https://discord.com/oauth2/authorize?client_id=1293583305794392084&permissions=2415930432&integration_type=0&scope=bot
 
