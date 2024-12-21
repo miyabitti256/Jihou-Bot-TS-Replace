@@ -28,6 +28,75 @@ client.on("ready", async () => {
       ),
     );
 
+    // ギルドのロールを同期
+    for (const [_, guild] of client.guilds.cache) {
+      const roles = await guild.roles.fetch();
+      const members = await guild.members.fetch();
+
+      const nonEveryoneRoles = Array.from(roles.values()).filter(
+        (role) => role.name !== "@everyone",
+      );
+
+      await Promise.all(
+        nonEveryoneRoles.map((role) =>
+          prisma.role.upsert({
+            where: { id: role.id },
+            update: {
+              name: role.name,
+              color: role.hexColor,
+              position: role.position,
+            },
+            create: {
+              id: role.id,
+              name: role.name,
+              color: role.hexColor,
+              position: role.position,
+              guild: {
+                connect: { id: guild.id },
+              },
+            },
+          }),
+        ),
+      );
+
+      const batchSize = 5;
+      const memberArray = Array.from(members.values());
+
+      for (let i = 0; i < memberArray.length; i += batchSize) {
+        const batch = memberArray.slice(i, i + batchSize);
+
+        await Promise.all(
+          batch.map(async (member) => {
+            const memberRoles = member.roles.cache.filter(
+              (role) => role.name !== "@everyone",
+            );
+
+            return Promise.all(
+              memberRoles.map((role) =>
+                prisma.userGuildRole.upsert({
+                  where: {
+                    userId_roleId_guildId: {
+                      userId: member.id,
+                      roleId: role.id,
+                      guildId: guild.id,
+                    },
+                  },
+                  create: {
+                    userId: member.id,
+                    roleId: role.id,
+                    guildId: guild.id,
+                  },
+                  update: {},
+                }),
+              ),
+            );
+          }),
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
     // メンバー処理を分割して実行
     for (const [_, guild] of client.guilds.cache) {
       const members = await guild.members.fetch();
@@ -187,6 +256,74 @@ client.on("guildDelete", async (guild) => {
     logger.info(`${guild.name}から退出しました`);
   } catch (error) {
     logger.error(`${guild.name}からの退出中にエラーが発生しました`, error);
+  }
+});
+
+client.on("guildMemberAdd", async (member) => {
+  try {
+    await prisma.user.upsert({
+      where: { id: member.id },
+      update: {
+        name: member.displayName,
+        guilds: {
+          upsert: {
+            where: {
+              userId_guildId: {
+                userId: member.id,
+                guildId: member.guild.id,
+              },
+            },
+            create: {
+              guild: {
+                connect: { id: member.guild.id },
+              },
+            },
+            update: {},
+          },
+        },
+      },
+      create: {
+        id: member.id,
+        name: member.displayName,
+        guilds: {
+          create: {
+            guild: {
+              connect: { id: member.guild.id },
+            },
+          },
+        },
+      },
+    });
+    logger.info(`${member.displayName}が${member.guild.name}に参加しました`);
+  } catch (error) {
+    logger.error(`${member.displayName}の同期中にエラーが発生しました`, error);
+  }
+});
+
+client.on("guildMemberRemove", async (member) => {
+  try {
+    await prisma.userGuild.delete({
+      where: {
+        userId_guildId: {
+          userId: member.id,
+          guildId: member.guild.id,
+        },
+      },
+    });
+
+    await prisma.userGuildRole.deleteMany({
+      where: {
+        userId: member.id,
+        guildId: member.guild.id,
+      },
+    });
+
+    logger.info(`${member.displayName}が${member.guild.name}から退出しました`);
+  } catch (error) {
+    logger.error(
+      `${member.displayName}の退出処理中にエラーが発生しました`,
+      error,
+    );
   }
 });
 

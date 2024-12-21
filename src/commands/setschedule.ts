@@ -50,7 +50,8 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     addMessage({
       id: generateId(),
       guildId: interaction.guildId as string,
-      channelId: interaction.channelId as string,
+      channelId: interaction.channelId,
+      createdUserId: interaction.user.id,
       message,
       scheduleTime: time,
       isActive: true,
