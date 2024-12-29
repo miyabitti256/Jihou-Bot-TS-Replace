@@ -344,7 +344,6 @@ async function collectChoices(
     });
 
     collector.on("collect", async (i) => {
-      // まずインタラクションに応答
       await i.deferUpdate();
 
       const choice = i.customId.split("_")[1] as ChoiceKey;
@@ -467,7 +466,6 @@ async function handleBetResult(
   opponentBet: number,
 ) {
   if (!winnerId) {
-    // 引き分けの場合は賭け金の変動なし
     return;
   }
 
@@ -476,11 +474,11 @@ async function handleBetResult(
     await prisma.$transaction([
       prisma.user.update({
         where: { id: challengerId },
-        data: { money: { increment: opponentBet } }, // 相手の賭け金を獲得
+        data: { money: { increment: opponentBet } },
       }),
       prisma.user.update({
         where: { id: opponentId },
-        data: { money: { decrement: opponentBet } }, // 自分の賭け金を失う
+        data: { money: { decrement: opponentBet } },
       }),
     ]);
   } else {
@@ -488,33 +486,14 @@ async function handleBetResult(
     await prisma.$transaction([
       prisma.user.update({
         where: { id: opponentId },
-        data: { money: { increment: challengerBet } }, // 相手の賭け金を獲得
+        data: { money: { increment: challengerBet } },
       }),
       prisma.user.update({
         where: { id: challengerId },
-        data: { money: { decrement: challengerBet } }, // 自分の賭け金を失う
+        data: { money: { decrement: challengerBet } },
       }),
     ]);
   }
-}
-
-// 残高の更新
-async function updateBalances(
-  winnerId: string,
-  winAmount: number,
-  loserId: string,
-  loseAmount: number,
-) {
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: winnerId },
-      data: { money: { increment: winAmount } },
-    }),
-    prisma.user.update({
-      where: { id: loserId },
-      data: { money: { increment: loseAmount } },
-    }),
-  ]);
 }
 
 // 結果の表示
@@ -605,7 +584,6 @@ async function handleRematch(
       return;
     }
 
-    // もう一度勝負を押した人を最初から承認済みに
     const isChallenger = buttonInteraction.user.id === challenger.id;
     let challengerConfirmed = isChallenger;
     let opponentConfirmed = !isChallenger;
@@ -681,7 +659,6 @@ async function handleRematch(
           components: [],
         });
 
-        // 同じインタラクションで再実行
         await execute(interaction, { challenger, opponent });
       }
     });
