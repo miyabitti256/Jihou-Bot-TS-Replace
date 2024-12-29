@@ -9,34 +9,38 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Guild {
-  id      String @id
-  name    String
-  users   UserGuild[]
-  joinedAt DateTime @default(now())
+  id                String             @id
+  name              String
+  users             UserGuild[]
+  joinedAt          DateTime           @default(now())
   scheduledMessages ScheduledMessage[]
 }
 
 model User {
-  id      String @id
-  name    String
-  money   Int    @default(1000)
-  guilds  UserGuild[]
-  omikujiResults OmikujiResult[]
-  gameLogs GameLog[]
-  lastDrawDate DateTime @default(now())
-  createdAt DateTime @default(now())
+  id               String            @id
+  name             String
+  money            Int               @default(1000)
+  guilds           UserGuild[]
+  omikujiResults   OmikujiResult[]
+  coinFlipGameLogs CoinFlipGameLog[]
+  jankenGameLogs   JankenGame[]
+  challengerGames  JankenGame[]      @relation("challenger")
+  opponentGames    JankenGame[]      @relation("opponent")
+  createdScheduledMessages ScheduledMessage[]
+  lastDrawDate     DateTime          @default(now())
+  createdAt        DateTime          @default(now())
 }
 
 model UserGuild {
-  user    User    @relation(fields: [userId], references: [id])
+  user    User   @relation(fields: [userId], references: [id])
   userId  String
-  guild   Guild   @relation(fields: [guildId], references: [id])
+  guild   Guild  @relation(fields: [guildId], references: [id])
   guildId String
 
   @@id([userId, guildId])
@@ -49,20 +53,22 @@ model ScheduledMessage {
   channelId    String
   message      String
   scheduleTime String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdUserId String
+  createdUser   User     @relation(fields: [createdUserId], references: [id])
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model OmikujiResult {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id])
-  result       String
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  result    String
+  createdAt DateTime @default(now())
 }
 
-model GameLog {
+model CoinFlipGameLog {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id])
@@ -72,12 +78,27 @@ model GameLog {
   createdAt    DateTime @default(now())
 }
 
-model Goods {
-  id           String   @id @default(cuid())
-  type         String
-  name         String
-  price        Int
-  description  String
-  createdAt    DateTime @default(now())
+model JankenGame {
+  id               String   @id @default(cuid())
+  challengerId     String
+  challenger       User     @relation("challenger", fields: [challengerId], references: [id])
+  opponentId       String
+  opponent         User     @relation("opponent", fields: [opponentId], references: [id])
+  challengerChoice String
+  opponentChoice   String
+  challengerBet    Int
+  opponentBet      Int
+  winnerId         String?
+  createdAt        DateTime @default(now())
+  User             User?    @relation(fields: [userId], references: [id])
+  userId           String?
 }
 
+model Goods {
+  id          String   @id @default(cuid())
+  type        String
+  name        String
+  price       Int
+  description String
+  createdAt   DateTime @default(now())
+}
