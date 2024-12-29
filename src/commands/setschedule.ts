@@ -54,6 +54,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
       message,
       scheduleTime: time,
       isActive: true,
+      createdUserId: interaction.user.id,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
