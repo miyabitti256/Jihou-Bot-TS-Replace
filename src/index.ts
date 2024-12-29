@@ -5,6 +5,7 @@ import { init, removeMessage } from "@lib/cron";
 import { updateStatus } from "@lib/utils";
 import cron from "node-cron";
 import { commands, loadCommands } from "@lib/commandHandler";
+import type { GuildMember } from "discord.js";
 
 const token = process.env.DISCORD_TOKEN as string;
 
@@ -38,7 +39,7 @@ client.on("ready", async () => {
       );
 
       // バッチ処理
-      const batchSize = 5;
+      const batchSize = 10;
       for (let i = 0; i < nonBotMembers.length; i += batchSize) {
         const batch = nonBotMembers.slice(i, i + batchSize);
 
@@ -205,6 +206,56 @@ client.on("interactionCreate", async (interaction) => {
       content: "コマンドの実行中にエラーが発生しました",
       ephemeral: true,
     });
+  }
+});
+
+// サーバーに新しいメンバーが参加したら
+client.on("guildMemberAdd", async (member: GuildMember) => {
+  try {
+    // botは除外
+    if (member.user.bot) return;
+
+    await prisma.user.upsert({
+      where: { id: member.id },
+      update: {
+        name: member.displayName,
+        guilds: {
+          upsert: {
+            where: {
+              userId_guildId: {
+                userId: member.id,
+                guildId: member.guild.id,
+              },
+            },
+            create: {
+              guild: {
+                connect: { id: member.guild.id },
+              },
+            },
+            update: {},
+          },
+        },
+      },
+      create: {
+        id: member.id,
+        name: member.displayName,
+        lastDrawDate: new Date(0),
+        guilds: {
+          create: {
+            guild: {
+              connect: { id: member.guild.id },
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(`${member.guild.name}に${member.displayName}が参加しました`);
+  } catch (error) {
+    logger.error(
+      `新規ユーザー(${member.displayName})の追加中にエラーが発生しました`,
+      error,
+    );
   }
 });
 
