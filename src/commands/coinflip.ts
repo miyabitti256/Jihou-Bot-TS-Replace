@@ -174,7 +174,7 @@ const flipCoin = async (
     data: { money: state.money + resultMoney },
   });
 
-  await prisma.gameLog.create({
+  await prisma.coinFlipGameLog.create({
     data: {
       userId,
       bet: state.bet,
